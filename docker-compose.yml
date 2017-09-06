@@ -1,0 +1,160 @@
+version: '2'
+
+# It's not normally necessary to explicitly set up Docker's networks, but
+# we want to set fixed IPs for convenience, and that seems to require all this.
+networks:
+    # Explicitly-defined internal network for containers to talk to each other
+    internal:
+        ipam:
+            config:
+              - subnet: 172.16.200.0/24
+                gateway: 172.16.200.1
+
+volumes:
+    # This magic line creates a named volume for sharing across containers.
+    # It has no defined location on the host system (real location is obscure).
+    scratch:
+
+services:
+
+    # Reverse proxy out in front of exchange and geoserver, e.g. for CORS
+    # proxy:
+    #     container_name: proxy
+    #     image: nginx
+    #     # see docker/nginx/Dockerfile
+    #     # The only change from upstream is to add a section to the nginx config
+    #     build: ./docker/nginx
+    #     networks:
+    #         internal:
+    #         # users need nginx visible to host on a fixed IP for convenience;
+    #         # otherwise constantly do a dance with `docker inspect` to get IPs
+    #         external:
+    #             ipv4_address: 172.16.238.2
+    #     # proxy needs hostnames which resolve to running exchange and geoserver
+    #     # containers, so it can proxy to them
+    #     links:
+    #         - exchange
+    #         - geoserver
+
+    # Database for use by Django, Celery and GeoServer
+    database:
+        container_name: database
+        image: postgres
+        # see docker/postgres/Dockerfile
+        # adds in an initialization script for Exchange-specific requirements
+        # also bakes in the initialization to avoid doing it at boot time
+        build: ./docker/postgres
+        networks:
+          - internal
+        ports:
+          - "9432:5432"
+
+    # Message queue receives tasks from django to be consumed by celery worker
+    queue:
+        container_name: queue
+        # Not customized
+        image: rabbitmq:3.6
+        networks:
+          - internal
+        ports:
+          - "9433:5672"
+
+    # Search engine
+    search:
+        container_name: search
+        # Not customized
+        image: elasticsearch:1.7
+        ports:
+          - "9434:9200"
+        networks:
+            internal:
+
+
+    # Useful thing
+    geoserver:
+        container_name: geoserver
+        image: geoserver
+        # see docker/geoserver/Dockerfile
+        # This modifies a tomcat image using JRE 8 to add and configure an
+        # instance of GeoServer from the magic WAR file Exchange needs.
+        build: ./docker/geoserver
+        ports:
+            # 8080 is the traditional HTTP port baked into server.xml
+            - "9435:8080"
+        links:
+            - database
+        volumes:
+            - scratch:/scratch
+        networks:
+            internal:
+            # Expose Geoserver on a fixed host IP for diagnostic purposes.
+            # Tomcat has /, GeoServer is under /geoserver at this IP
+
+
+    # Django app which presents an interface and ties everything else together
+    exchange:
+        env_file: .env
+        container_name: exchange
+        image: exchange
+        # see ./Dockerfile which defines the whole setup
+        build: ./docker/exchange
+
+        links:
+            - database
+            - queue
+            - geoserver
+
+        # Code in volumes shared with host, so edits are immediately visible.
+        volumes:
+            - scratch:/scratch
+
+            # Add a MapLoom home
+            - $MAPLOOM_HOME:/mnt/maploom:ro
+
+            # Ideally, all volumes shared with host are mounted read-only.
+            # But we have to pip install -e /mnt/geonode to ensure GeoNode's
+            # dependencies are all installed per its setup.py.
+            # And pip insists on writing its .egg-info to the source directory.
+            # 'python setup.py develop' might be a workaround if GeoNode's
+            # setup.py used setuptools, but it doesn't so that fails.
+            - $GEONODE_HOME:/mnt/geonode
+
+            # Exchange code that dev will presumably want to change.
+            - $EXCHANGE_HOME:/mnt/exchange:rw
+
+            # Example of how to mount something else from here.
+            # - $HOME/stuff/django-osgeo-importer:/mnt/django-osgeo-importer:ro
+
+        networks:
+          internal:
+
+        ports:
+          # Django at /
+          - "9436:80"
+          # export ssl version as well.
+          - "9437:443"
+
+    # Container running registry
+    registry:
+        container_name: registry
+        image: registry
+        build: ./docker/registry
+        links:
+            - search
+        ports:
+            - "9438:8001"
+        volumes:
+            - scratch:/scratch
+
+            # For local dev'ing, uncomment the below
+            #  If using the line below verbatim,
+            #  registry must be cloned to ~/boundless/registry
+            # - ~/boundless/registry:/opt/registry:ro
+
+        networks:
+            internal:
+            # Expose on a fixed host IP for diagnostic purposes.
+
+        environment:
+            # Setup registry to use included search
+            - REGISTRY_SEARCH_URL=http://search:9200
