@@ -24,18 +24,27 @@ RUN sed -i -e 's:keepcache=0:keepcache=1:' /etc/yum.conf && \
                    make \
                    openldap-devel \
                    openssl-devel \
-                   python27-devel \
+                   python-devel \
                    python27-virtualenv \
+                   python-setuptools \
                    readline-devel \
                    sqlite-devel \
                    tk-devel \
                    zlib-devel \
-    && \
-    # Create the virtualenv the app will run in
-    /usr/local/bin/virtualenv /env && chmod -R 755 /env
+                   wget
+    # && \
+    # # Create the virtualenv the app will run in
+    # /usr/local/bin/virtualenv /env && chmod -R 755 /env
 
-ADD docker/home/* /root/
+ADD ./* /root/
 RUN chmod 755 /root/*.sh /root/*.py
+
+# this will symlink the maploom files to the MapLoom repository which
+#  exists outside of the container.
+# RUN rm -rf /env/lib/python2.7/site-packages/maploom/static/maploom && \
+#     ln -s /mnt/maploom/build /env/lib/python2.7/site-packages/maploom/static/maploom && \
+#     rm /env/lib/python2.7/site-packages/maploom/templates/maps/maploom.html && \
+#     ln -s /mnt/maploom/build/maploom.html /env/lib/python2.7/site-packages/maploom/templates/maps/maploom.html
 
 WORKDIR /scratch
 CMD ["/root/exchange.sh"]

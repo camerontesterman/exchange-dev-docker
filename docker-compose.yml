@@ -100,9 +100,9 @@ services:
         build: ./docker/exchange
 
         links:
-            - database
-            - queue
-            - geoserver
+          - database
+          - queue
+          - geoserver
 
         # Code in volumes shared with host, so edits are immediately visible.
         volumes:
@@ -124,15 +124,11 @@ services:
 
             # Example of how to mount something else from here.
             # - $HOME/stuff/django-osgeo-importer:/mnt/django-osgeo-importer:ro
-
         networks:
           internal:
-
         ports:
           # Django at /
-          - "9436:80"
-          # export ssl version as well.
-          - "9437:443"
+          - "9436:8000"
 
     # Container running registry
     registry:

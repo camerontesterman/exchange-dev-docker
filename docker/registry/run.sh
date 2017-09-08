@@ -1,5 +1,8 @@
 #!/bin/bash
 
+chmod 755 /root/setupdb.sh
+/root/setupdb.sh
+
 source /etc/profile.d/registry-settings.sh
 source /etc/profile.d/vendor-libs.sh
 source /env/bin/activate

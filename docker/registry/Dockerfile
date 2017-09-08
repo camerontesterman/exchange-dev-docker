@@ -9,9 +9,13 @@ RUN yum -y install boundless-vendor-libs \
                    libxslt-devel \
                    make \
                    gcc \
-                   gcc-c++
+                   gcc-c++ \
+                   python27 \
+                   python27-devel \
+                   python27-setuptools \
+                   python27-virtualenv \
+                   git
 
-RUN yum install -y python27 python27-devel python27-setuptools python27-virtualenv git
 RUN /usr/local/bin/virtualenv /env && chmod -R 755 /env
 
 EXPOSE 8001
@@ -20,16 +24,17 @@ RUN git clone https://github.com/boundlessgeo/registry/ /opt/registry/
 
 ADD registry-settings.sh /etc/profile.d/
 
-
 ADD setupdb.sh /root/
 ADD run.sh /root/
+
+RUN chmod 755 /root/*.sh
+
 ADD registry_mappings_overrides.json /root/
+
+RUN chmod 755 /root/registry_mappings_overrides.json
 
 # globally install what registry needs.
 WORKDIR /opt/registry/
 RUN source /env/bin/activate && pip install -r requirements.txt
-
-# inititalize
-RUN /root/setupdb.sh
 
 CMD /root/run.sh
