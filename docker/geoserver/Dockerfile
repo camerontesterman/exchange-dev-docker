@@ -8,14 +8,14 @@ RUN wget --directory-prefix /tmp --progress=dot:giga https://exchange-developmen
 
 # Run config inside container
 RUN unzip -o /tmp/geoserver.war -d /tmp/geoserver && \
-    sed -i.bak 's@<baseUrl>\([^<][^<]*\)</baseUrl>@<baseUrl>http://localhost/</baseUrl>@' \
+    sed -i.bak 's@<baseUrl>\([^<][^<]*\)</baseUrl>@<baseUrl>http://geoserver/</baseUrl>@' \
                /tmp/geoserver/data/security/auth/geonodeAuthProvider/config.xml && \
-    sed -i.bak 's@<onlineResource>http://geoserver.org</onlineResource>@<onlineResource>http://geoserver.org</onlineResource><proxyBaseUrl>http://localhost/geoserver/</proxyBaseUrl>@' \
+    sed -i.bak 's@<onlineResource>http://geoserver.org</onlineResource>@<onlineResource>http://geoserver.org</onlineResource><proxyBaseUrl>http://geoserver:8080/geoserver/</proxyBaseUrl>@' \
                /tmp/geoserver/data/global.xml && \
-    # sed -i.bak 's@localhost:\(8000\|8080\)@172.16.238.2@g' \
-    #            /tmp/geoserver/data/security/filter/geonode-oauth2/config.xml && \
-    # sed -i.bak 's@localhost:8000@172.16.238.2@g' \
-    #            /tmp/geoserver/data/security/role/geonode\ REST\ role\ service/config.xml && \
+    sed -i.bak 's@localhost:\(8000\|8080\)@geoserver:8080@g' \
+               /tmp/geoserver/data/security/filter/geonode-oauth2/config.xml && \
+    sed -i.bak 's@localhost:8000@geoserver:8080@g' \
+               /tmp/geoserver/data/security/role/geonode\ REST\ role\ service/config.xml && \
     rm -rf /usr/local/tomcat/webapps/geoserver && \
     mv /tmp/geoserver $CATALINA_HOME/webapps/geoserver && \
     chmod -R 755 $CATALINA_HOME/webapps/geoserver && \
